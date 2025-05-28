@@ -75,7 +75,6 @@ jobs:
           resourceGroup: ${{ env.RESOURCE_GROUP }}
           containerAppEnvironment: ${{ env.CONTAINER_APPS_ENVIRONMENT }}
           imageToBuild: ${{ steps.vars.outputs.api_image_tag }}
-          dockerfilePath: ${{ github.workspace }}/src/api/Dockerfile
           targetPort: 80
           ingress: external
           environmentVariables: |
