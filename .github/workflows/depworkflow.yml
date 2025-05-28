@@ -126,6 +126,10 @@ jobs:
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
+            # Assign AcrPull role to the container app's managed identity
+            API_PRINCIPAL_ID=$(az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" -o tsv)
+            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query id -o tsv)
+            az role assignment create --assignee $API_PRINCIPAL_ID --role AcrPull --scope $ACR_ID
           fi
       - name: Deploy Web to Azure Container Apps
         run: |
@@ -161,6 +165,10 @@ jobs:
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
+            # Assign AcrPull role to the container app's managed identity
+            WEB_PRINCIPAL_ID=$(az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" -o tsv)
+            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query id -o tsv)
+            az role assignment create --assignee $WEB_PRINCIPAL_ID --role AcrPull --scope $ACR_ID
           fi
     #   - name: Get deployment URLs and create summary
     #     id: deployment
