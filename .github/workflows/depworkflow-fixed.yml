@@ -1,0 +1,58 @@
+name: Azure Container Apps Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/api/**'
+      - 'src/web/**'
+      - '.github/workflows/depworkflow-fixed.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/api/**'
+      - 'src/web/**'
+  workflow_dispatch:
+    
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  # Azure Container Registry details
+  AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
+  REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
+  
+  # Container App Environment
+  CONTAINER_APPS_ENVIRONMENT: agent-ca-env
+  RESOURCE_GROUP: rg-crtwriter
+  
+  API_IMAGE_NAME: agent-api2
+  WEB_IMAGE_NAME: agent-web2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          auth-type: IDENTITY
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+      - name: Build and deploy Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          appSourcePath: ${{ github.workspace }}/src/api
+          acrName: ${{ env.AZURE_CONTAINER_REGISTRY }}
+          containerAppName: ${{ env.API_IMAGE_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          containerAppEnvironment: ${{ env.CONTAINER_APPS_ENVIRONMENT }}
+          imageToBuild: "${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.API_IMAGE_NAME }}:${SHORT_SHA}"
+          dockerfilePath: ${{ github.workspace }}/src/api/Dockerfile
