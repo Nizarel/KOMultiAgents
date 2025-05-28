@@ -2,7 +2,7 @@ name: Build and deploy to Azure Container Apps Deploy
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master, develop ]
     paths:
       - 'src/api/**'
       - 'src/web/**'
@@ -38,13 +38,13 @@ jobs:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v4
 
-      - name: Login to Azure
-        uses: azure/login@v2
+      - name: Azure Login
+        uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
+          client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
+          
       - name: Build and deploy Container App
         uses: azure/container-apps-deploy-action@v1
         with:
