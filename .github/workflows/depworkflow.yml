@@ -101,8 +101,6 @@ jobs:
               --name ${{ env.API_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --image ${{ steps.vars.outputs.api_image_tag }} \
-              --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-identity system \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --set-env-vars \
                 ENVIRONMENT=production \
