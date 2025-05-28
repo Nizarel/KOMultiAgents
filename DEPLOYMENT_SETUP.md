@@ -1,6 +1,6 @@
 # GitHub Actions Deployment Setup Guide
 
-This guide helps you set up the required Azure credentials and permissions for the GitHub Actions workflow to deploy your applications to Azure Container Apps.
+This guide helps you set up the required Azure credentials and permissions for the GitHub Actions workflow to deploy your applications to Azure Container Apps using Managed Identity authentication.
 
 ## Prerequisites
 
@@ -11,82 +11,126 @@ This guide helps you set up the required Azure credentials and permissions for t
 
 2. GitHub repository with Actions enabled
 
-## Step 1: Create Azure Service Principal
+## Step 1: Create Azure App Registration for Managed Identity
 
-You need to create a service principal with the necessary permissions to build, push images, and deploy container apps.
+You need to create an Azure App Registration with federated credentials for GitHub Actions.
 
-### 1.1 Create Service Principal
+### 1.1 Create App Registration
 
 ```bash
 # Get your subscription ID
-az account show --query id -o tsv
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
-# Create service principal with Contributor role
-az ad sp create-for-rbac \
-  --name "github-actions-container-deployment" \
-  --role "Contributor" \
-  --scopes "/subscriptions/{subscription-id}/resourceGroups/rg-crtwriter" \
-  --sdk-auth
+# Create app registration
+az ad app create --display-name "github-actions-container-deployment"
+
+# Get the application ID
+APP_ID=$(az ad app list --display-name "github-actions-container-deployment" --query [0].appId -o tsv)
+
+# Create service principal
+az ad sp create --id $APP_ID
 ```
 
-### 1.2 Additional Role Assignments
+### 1.2 Create Federated Credentials
 
-The service principal needs additional permissions:
+```bash
+# Create federated credential for main branch
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters '{
+    "name": "github-main",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:ref:refs/heads/main",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+
+# Create federated credential for develop branch
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters '{
+    "name": "github-develop", 
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:ref:refs/heads/develop",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+
+# Create federated credential for pull requests
+az ad app federated-credential create \
+  --id $APP_ID \
+  --parameters '{
+    "name": "github-pr",
+    "issuer": "https://token.actions.githubusercontent.com", 
+    "subject": "repo:YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:pull_request",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+```
+
+### 1.3 Assign Required Roles
 
 ```bash
 # Get the service principal object ID
 SP_ID=$(az ad sp list --display-name "github-actions-container-deployment" --query [0].id -o tsv)
 
+# Assign Contributor role to resource group
+az role assignment create \
+  --assignee $SP_ID \
+  --role "Contributor" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/rg-crtwriter"
+
 # Assign AcrPush role for container registry
 az role assignment create \
   --assignee $SP_ID \
   --role "AcrPush" \
-  --scope "/subscriptions/{subscription-id}/resourceGroups/rg-crtwriter/providers/Microsoft.ContainerRegistry/registries/cr3rbky3yz3zumq"
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/rg-crtwriter/providers/Microsoft.ContainerRegistry/registries/cr3rbky3yz3zumq"
 
 # Assign Container Apps Contributor role
 az role assignment create \
   --assignee $SP_ID \
   --role "Container Apps Contributor" \
-  --scope "/subscriptions/{subscription-id}/resourceGroups/rg-crtwriter"
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/rg-crtwriter"
 ```
 
 ## Step 2: Configure GitHub Secrets
 
-Add the following secret to your GitHub repository:
+Add the following secrets to your GitHub repository:
 
-### 2.1 AZURE_CREDENTIALS
+### 2.1 Required Secrets
 
-The output from the `az ad sp create-for-rbac` command should look like this:
+1. **AZURE_CLIENT_ID**: The Application (client) ID of your app registration
+2. **AZURE_TENANT_ID**: Your Azure tenant ID  
+3. **AZURE_SUBSCRIPTION_ID**: Your Azure subscription ID
 
-```json
-{
-  "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "clientSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "subscriptionId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
+Get these values:
+
+```bash
+# Get tenant ID
+TENANT_ID=$(az account show --query tenantId -o tsv)
+
+# Get subscription ID  
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+# Get client ID (already stored in APP_ID variable)
+echo "Client ID: $APP_ID"
+echo "Tenant ID: $TENANT_ID" 
+echo "Subscription ID: $SUBSCRIPTION_ID"
 ```
 
-Add this entire JSON object as a secret named `AZURE_CREDENTIALS` in your GitHub repository:
+### 2.2 Using GitHub UI
 
 1. Go to your GitHub repository
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Name: `AZURE_CREDENTIALS`
-5. Value: Paste the entire JSON output from the service principal creation
+3. Click **New repository secret** for each:
+   - Name: `AZURE_CLIENT_ID`, Value: `[your-app-id]`
+   - Name: `AZURE_TENANT_ID`, Value: `[your-tenant-id]`
+   - Name: `AZURE_SUBSCRIPTION_ID`, Value: `[your-subscription-id]`
 
-### 2.2 Using GitHub CLI (Alternative)
-
-If you have GitHub CLI installed:
+### 2.3 Using GitHub CLI (Alternative)
 
 ```bash
-# Set the AZURE_CREDENTIALS secret
-gh secret set AZURE_CREDENTIALS --body '{
-  "clientId": "your-client-id",
-  "clientSecret": "your-client-secret", 
-  "subscriptionId": "your-subscription-id",
-  "tenantId": "your-tenant-id"
-}'
+# Set secrets using GitHub CLI
+gh secret set AZURE_CLIENT_ID --body "$APP_ID"
+gh secret set AZURE_TENANT_ID --body "$TENANT_ID"
+gh secret set AZURE_SUBSCRIPTION_ID --body "$SUBSCRIPTION_ID"
 ```
 
 ## Step 3: Enable Container Registry System Identity
