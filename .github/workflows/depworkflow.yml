@@ -24,7 +24,7 @@ env:
   RESOURCE_GROUP: rg-crtwriter
   
   # User-assigned managed identity for ACR pull
-  USER_ASSIGNED_IDENTITY_ID: id-3rbky3yz3zumq
+  USER_ASSIGNED_IDENTITY_ID: ec5d4f86-05ed-4797-831b-32fc6392fb4b
   
   API_IMAGE_NAME: agent-api4
   WEB_IMAGE_NAME: agent-web4
