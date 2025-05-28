@@ -6,7 +6,7 @@ on:
     paths:
       - 'src/api/**'
       - 'src/web/**'
-      - '.github/workflows/depworkflow-fixed.yml'
+      - '.github/workflows/depworkflow.yml'
   pull_request:
     branches: [ master ]
     paths:
@@ -22,6 +22,9 @@ env:
   # Container App Environment
   CONTAINER_APPS_ENVIRONMENT: agent-ca-env
   RESOURCE_GROUP: rg-crtwriter
+  
+  # User-assigned managed identity for ACR pull
+  USER_ASSIGNED_IDENTITY_ID: id-3rbky3yz3zumq
   
   API_IMAGE_NAME: agent-api4
   WEB_IMAGE_NAME: agent-web4
@@ -96,20 +99,30 @@ jobs:
 
       - name: Deploy API to Azure Container Apps
         run: |
+          # Get full resource ID of user-assigned identity
+          IDENTITY_RESOURCE_ID=$(az identity show --name ${{ env.USER_ASSIGNED_IDENTITY_ID }} --resource-group ${{ env.RESOURCE_GROUP }} --query id -o tsv)
+          
           # Check if the container app exists
           if az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             echo "✅ Updating existing API container app..."
+            # For update, we need to modify the container app properties to include the registry credentials
             az containerapp update \
               --name ${{ env.API_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --image ${{ steps.vars.outputs.api_image_tag }} \
-              --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-identity system \
+              --user-assigned $IDENTITY_RESOURCE_ID \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --set-env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
+            
+            # Update the registry configuration to use the user-assigned identity
+            az containerapp registry set \
+              --name ${{ env.API_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --server ${{ env.REGISTRY_URL }} \
+              --identity $IDENTITY_RESOURCE_ID
           else
             echo "🆕 Creating new API container app..."
             az containerapp create \
@@ -125,7 +138,8 @@ jobs:
               --memory 1Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-identity system \
+              --user-assigned $IDENTITY_RESOURCE_ID \
+              --registry-identity $IDENTITY_RESOURCE_ID \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -134,6 +148,9 @@ jobs:
 
       - name: Deploy Web to Azure Container Apps
         run: |
+          # Get full resource ID of user-assigned identity
+          IDENTITY_RESOURCE_ID=$(az identity show --name ${{ env.USER_ASSIGNED_IDENTITY_ID }} --resource-group ${{ env.RESOURCE_GROUP }} --query id -o tsv)
+          
           # Check if the container app exists
           if az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             echo "✅ Updating existing Web container app..."
@@ -141,11 +158,19 @@ jobs:
               --name ${{ env.WEB_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --image ${{ steps.vars.outputs.web_image_tag }} \
+              --user-assigned $IDENTITY_RESOURCE_ID \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --set-env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
+                
+            # Update the registry configuration to use the user-assigned identity
+            az containerapp registry set \
+              --name ${{ env.WEB_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --server ${{ env.REGISTRY_URL }} \
+              --identity $IDENTITY_RESOURCE_ID
           else
             echo "🆕 Creating new Web container app..."
             az containerapp create \
@@ -161,7 +186,8 @@ jobs:
               --memory 0.5Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-identity system \
+              --user-assigned $IDENTITY_RESOURCE_ID \
+              --registry-identity $IDENTITY_RESOURCE_ID \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -214,60 +240,6 @@ jobs:
     #       - **Environment**: \`${{ env.CONTAINER_APPS_ENVIRONMENT }}\`
     #       - **Resource Group**: \`${{ env.RESOURCE_GROUP }}\`
     #       EOF
-
-    #   - name: Perform health checks
-    #     run: |
-    #       echo "🔍 Performing application health checks..."
-          
-    #       API_URL="${{ steps.deployment.outputs.api_url }}"
-    #       WEB_URL="${{ steps.deployment.outputs.web_url }}"
-          
-    #       # API Health Check
-    #       echo "Checking API health at: $API_URL"
-    #       API_HEALTHY=false
-          
-    #       for attempt in {1..6}; do
-    #         echo "🔄 API health check attempt $attempt/6..."
-            
-    #         if curl -f -s --max-time 10 "$API_URL/health" &>/dev/null || \
-    #            curl -f -s --max-time 10 "$API_URL/" &>/dev/null || \
-    #            curl -f -s --max-time 10 "$API_URL/docs" &>/dev/null; then
-    #           echo "✅ API is healthy and responding"
-    #           API_HEALTHY=true
-    #           break
-    #         else
-    #           echo "⏳ API not ready, waiting 15 seconds..."
-    #           sleep 15
-    #         fi
-    #       done
-          
-    #       # Web Health Check
-    #       echo "Checking Web application health at: $WEB_URL"
-    #       WEB_HEALTHY=false
-          
-    #       for attempt in {1..6}; do
-    #         echo "🔄 Web health check attempt $attempt/6..."
-            
-    #         if curl -f -s --max-time 10 "$WEB_URL" &>/dev/null; then
-    #           echo "✅ Web application is healthy and responding"
-    #           WEB_HEALTHY=true
-    #           break
-    #         else
-    #           echo "⏳ Web application not ready, waiting 15 seconds..."
-    #           sleep 15
-    #         fi
-    #       done
-          
-    #       # Update summary with health check results
-    #       cat >> $GITHUB_STEP_SUMMARY << EOF
-          
-    #       ### 🏥 Health Check Results
-    #       - **API Health**: $([ "$API_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
-    #       - **Web Health**: $([ "$WEB_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
-          
-    #       EOF
-          
-    #       echo "🎉 Deployment completed successfully!"
 
     #   - name: Azure logout
     #     if: always()
