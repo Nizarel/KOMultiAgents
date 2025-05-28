@@ -1,83 +1,83 @@
-name: Build and deploy to Azure Container Apps Deploy
+# name: Build and deploy to Azure Container Apps Deploy
 
-on:
-  push:
-    branches: [ master, develop ]
-    paths:
-      - 'src/api/**'
-      - 'src/web/**'
-      - '.github/workflows/depworkflow-fixed.yml'
-  pull_request:
-    branches: [ master ]
-    paths:
-      - 'src/api/**'
-      - 'src/web/**'
-  workflow_dispatch:
+# on:
+#   push:
+#     branches: [ master, develop ]
+#     paths:
+#       - 'src/api/**'
+#       - 'src/web/**'
+#       - '.github/workflows/depworkflow-fixed.yml'
+#   pull_request:
+#     branches: [ master ]
+#     paths:
+#       - 'src/api/**'
+#       - 'src/web/**'
+#   workflow_dispatch:
     
-env:
-  # Azure Container Registry details
-  AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
-  REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
+# env:
+#   # Azure Container Registry details
+#   AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
+#   REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
   
-  # Container App Environment
-  CONTAINER_APPS_ENVIRONMENT: agent-ca-env
-  RESOURCE_GROUP: rg-crtwriter
+#   # Container App Environment
+#   CONTAINER_APPS_ENVIRONMENT: agent-ca-env
+#   RESOURCE_GROUP: rg-crtwriter
   
-  API_IMAGE_NAME: agent-api3
-  WEB_IMAGE_NAME: agent-web3
+#   API_IMAGE_NAME: agent-api3
+#   WEB_IMAGE_NAME: agent-web3
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       id-token: write
+#       contents: read
 
-    steps:
-    #   - uses: actions/checkout@v3
-      - name: 'Checkout GitHub Action'
-        uses: actions/checkout@v4
+#     steps:
+#     #   - uses: actions/checkout@v3
+#       - name: 'Checkout GitHub Action'
+#         uses: actions/checkout@v4
 
-      - name: Set up variables
-        id: vars
-        run: |
-          BUILD_NUMBER=${{ github.run_number }}
-          SHORT_SHA=${GITHUB_SHA::8}
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+#       - name: Set up variables
+#         id: vars
+#         run: |
+#           BUILD_NUMBER=${{ github.run_number }}
+#           SHORT_SHA=${GITHUB_SHA::8}
+#           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           
-          # Set image tags
-          API_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${BUILD_NUMBER}"
-          WEB_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.WEB_IMAGE_NAME }}:${BUILD_NUMBER}"
+#           # Set image tags
+#           API_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${BUILD_NUMBER}"
+#           WEB_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.WEB_IMAGE_NAME }}:${BUILD_NUMBER}"
           
-          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
-          echo "api_image_tag=${API_IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "web_image_tag=${WEB_IMAGE_TAG}" >> $GITHUB_OUTPUT
+#           echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+#           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+#           echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+#           echo "api_image_tag=${API_IMAGE_TAG}" >> $GITHUB_OUTPUT
+#           echo "web_image_tag=${WEB_IMAGE_TAG}" >> $GITHUB_OUTPUT
           
-          echo "🏷️ Image tags:"
-          echo "API: ${API_IMAGE_TAG}"
-          echo "Web: ${WEB_IMAGE_TAG}"
+#           echo "🏷️ Image tags:"
+#           echo "API: ${API_IMAGE_TAG}"
+#           echo "Web: ${WEB_IMAGE_TAG}"
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
+#       - name: Azure Login
+#         uses: azure/login@v1
+#         with:
+#           client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
+#           tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
+#           subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and deploy API Container App
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          appSourcePath: ${{ github.workspace }}/src/api
-          acrName: ${{ env.AZURE_CONTAINER_REGISTRY }}
-          containerAppName: ${{ env.API_IMAGE_NAME }}
-          resourceGroup: ${{ env.RESOURCE_GROUP }}
-          containerAppEnvironment: ${{ env.CONTAINER_APPS_ENVIRONMENT }}
-          imageToBuild: ${{ steps.vars.outputs.api_image_tag }}
-          targetPort: 80
-          ingress: external
-          environmentVariables: |
-            ENVIRONMENT=production
-            BUILD_NUMBER=${{ steps.vars.outputs.build_number }}
-            GIT_SHA=${{ steps.vars.outputs.short_sha }}
+#       - name: Build and deploy API Container App
+#         uses: azure/container-apps-deploy-action@v2
+#         with:
+#           appSourcePath: ${{ github.workspace }}/src/api
+#           acrName: ${{ env.AZURE_CONTAINER_REGISTRY }}
+#           containerAppName: ${{ env.API_IMAGE_NAME }}
+#           resourceGroup: ${{ env.RESOURCE_GROUP }}
+#           containerAppEnvironment: ${{ env.CONTAINER_APPS_ENVIRONMENT }}
+#           imageToBuild: ${{ steps.vars.outputs.api_image_tag }}
+#           targetPort: 80
+#           ingress: external
+#           environmentVariables: |
+#             ENVIRONMENT=production
+#             BUILD_NUMBER=${{ steps.vars.outputs.build_number }}
+#             GIT_SHA=${{ steps.vars.outputs.short_sha }}
