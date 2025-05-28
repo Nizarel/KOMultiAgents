@@ -23,8 +23,8 @@ env:
   CONTAINER_APPS_ENVIRONMENT: agent-ca-env
   RESOURCE_GROUP: rg-crtwriter
   
-  API_IMAGE_NAME: agent-api3
-  WEB_IMAGE_NAME: agent-web3
+  API_IMAGE_NAME: agent-api4
+  WEB_IMAGE_NAME: agent-web4
 
 jobs:
   build-and-deploy:
