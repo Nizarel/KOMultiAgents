@@ -1,0 +1,36 @@
+name: Update Environment Variables
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-env-vars:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set environment variables
+      run: |
+        echo "API_SERVICE_ACA_NAME=agent-api" >> $GITHUB_ENV
+        echo "APPINSIGHTS_CONNECTIONSTRING=InstrumentationKey=a941babe-3b75-463e-ae64-adbb4a268a54;IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus2.livediagnostics.monitor.azure.com/;ApplicationId=878cc89a-8369-4912-bc33-90d275dc6837" >> $GITHUB_ENV
+        echo "AZURE_AI_PROJECT_NAME=ai-project-3rbky3yz3zumq" >> $GITHUB_ENV
+        echo "AZURE_CLIENT_ID=ea7bb5ca-bcaa-4cc3-9f05-9233a5c651b7" >> $GITHUB_ENV
+        echo "AZURE_CONTAINER_REGISTRY_NAME=cr3rbky3yz3zumq" >> $GITHUB_ENV
+        echo "AZURE_EMBEDDING_NAME=text-embedding-ada-002" >> $GITHUB_ENV
+        echo "AZURE_ENV_NAME=crtwriter" >> $GITHUB_ENV
+        echo "AZURE_LOCATION=eastus2" >> $GITHUB_ENV
+        echo "AZURE_OPENAI_4_EVAL_DEPLOYMENT_NAME=gpt-4-evals" >> $GITHUB_ENV
+        echo "AZURE_OPENAI_API_VERSION=2024-08-01-preview" >> $GITHUB_ENV
+        echo "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4" >> $GITHUB_ENV
+        echo "AZURE_OPENAI_ENDPOINT=https://aoai-3rbky3yz3zumq.openai.azure.com/" >> $GITHUB_ENV
+        echo "AZURE_OPENAI_NAME=aoai-3rbky3yz3zumq" >> $GITHUB_ENV
+        echo "AZURE_RESOURCE_GROUP=rg-crtwriter" >> $GITHUB_ENV
+        echo "AZURE_SEARCH_ENDPOINT=https://srch-3rbky3yz3zumq.search.windows.net/" >> $GITHUB_ENV
+        echo "AZURE_SEARCH_NAME=srch-3rbky3yz3zumq" >> $GITHUB_ENV
+        echo "AZURE_SUBSCRIPTION_ID=b6e08f96-9a62-46d0-b276-8dc80e6bc02a" >> $GITHUB_ENV
+        echo "AZURE_TENANT_ID=16b3c013-d300-468d-ac64-7eda0820b6d3" >> $GITHUB_ENV
+        echo "BING_SEARCH_ENDPOINT=https://api.bing.microsoft.com/" >> $GITHUB_ENV
+        echo "WEB_SERVICE_ACA_NAME=agent-web" >> $GITHUB_ENV
+        echo "WEB_SERVICE_ACA_URI=https://agent-web.victoriousbush-684c2a61.eastus2.azurecontainerapps.io" >> $GITHUB_ENV
