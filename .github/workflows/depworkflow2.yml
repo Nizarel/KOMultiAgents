@@ -1,160 +1,86 @@
-# name: Trigger auto deployment for agent-api2
+name: Deploy
 
-# # When this action will be executed
-# on:
-#   push:
-#     branches: [ master, develop ]
-#     paths:
-#       - 'src/api/**'
-#       - 'src/web/**'
-#       - '.github/workflows/depworkflow2.yml'
-#   pull_request:
-#     branches: [ master ]
-#     paths:
-#       - 'src/api/**'
-#       - 'src/web/**'
-#   workflow_dispatch:
-    
-# env:
-#   # Azure Container Registry details
-#   AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
-#   REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
-  
-#   # Container App Environment
-#   CONTAINER_APPS_ENVIRONMENT: agent-ca-env
-#   RESOURCE_GROUP: rg-crtwriter
-  
-#   API_IMAGE_NAME: agent-api10
-# #   WEB_IMAGE_NAME: agent-web33
+on:
+  workflow_dispatch:
+  push:
+    # Run when commits are pushed to mainline branch (main or master)
+    # Set this to the mainline branch you are using
+    branches:
+      - master
 
-# jobs:
-#   build-and-deploy:
-#     runs-on: ubuntu-latest
-#     permissions: 
-#       id-token: write #This is required for requesting the OIDC JWT Token
-#       contents: read #Required when GH token is used to authenticate with private repo
+# GitHub Actions workflow to deploy to Azure using azd
+# To configure required secrets for connecting to Azure, simply run `azd pipeline config`
 
-#     steps:
-#       - name: Checkout to the branch
-#         uses: actions/checkout@v4
+# Set up permissions for deploying with secretless Azure federated credentials
+# https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure?tabs=azure-portal%2Clinux#set-up-azure-login-with-openid-connect-authentication
+permissions:
+  id-token: write
+  contents: read
 
-#       - name: Azure Login
-#         uses: azure/login@v1
-#         with:
-#           client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
-#           tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
-#           subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # azd required
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      # project specific
+      AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_API_VERSION: ${{ vars.AZURE_OPENAI_API_VERSION }}
+      AZURE_OPENAI_4_EVAL_DEPLOYMENT_NAME: ${{ vars.AZURE_OPENAI_4_EVAL_DEPLOYMENT_NAME }}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${{ vars.AZURE_OPENAI_DEPLOYMENT_NAME }}
+      AZURE_OPENAI_NAME: ${{ vars.AZURE_OPENAI_NAME }}
+      AZURE_CONTAINER_REGISTRY_NAME: ${{ vars.AZURE_CONTAINER_REGISTRY_NAME }}    
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }} 
+      API_SERVICE_ACA_NAME: ${{ vars.API_SERVICE_ACA_NAME }} 
+      WEB_SERVICE_ACA_NAME: ${{ vars.WEB_SERVICE_ACA_NAME }} 
+      AZURE_SEARCH_NAME: ${{ vars.AZURE_SEARCH_NAME }} 
+      WEB_SERVICE_ACA_URI: ${{ vars.WEB_SERVICE_ACA_URI }} 
+      AZURE_SEARCH_ENDPOINT: ${{ vars.AZURE_SEARCH_ENDPOINT }} 
+      BING_SEARCH_ENDPOINT: ${{ vars.BING_SEARCH_ENDPOINT }}
+      BING_SEARCH_KEY: ${{ secrets.BING_SEARCH_KEY }}
 
-#       - name: Log in to Azure Container Registry
-#         run: az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-#       - name: Build and push container image
-#         run: |
-#           cd ${{ github.workspace }}/src/api
-          
-#           # Use Docker buildx for better performance and caching
-#           docker buildx create --use --driver docker-container --name builder || true
-          
-#           # Build with cache layers and push directly
-#           docker buildx build \
-#             --platform linux/amd64 \
-#             --cache-from type=registry,ref=${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:cache \
-#             --cache-to type=registry,ref=${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:cache,mode=max \
-#             --tag ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }} \
-#             --tag ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:latest \
-#             --push \
-#             .
+      - name: Install azd
+        uses: Azure/setup-azd@v2
 
-#       - name: Deploy to Container Apps
-#         run: |
-#           # Get the user-assigned managed identity resource ID using the client ID from secrets
-#           IDENTITY_ID=$(az identity list \
-#             --query "[?clientId=='${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}'].id | [0]" -o tsv)
-          
-#           if [ -z "$IDENTITY_ID" ]; then
-#             echo "ERROR: Could not find managed identity with client ID ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}"
-#             exit 1
-#           fi
-          
-#           echo "Using managed identity: $IDENTITY_ID"
-          
-#           # Check if Container App exists and its current state
-#           echo "Checking Container App status..."
-#           APP_STATUS=$(az containerapp show \
-#             --name ${{ env.API_IMAGE_NAME }} \
-#             --resource-group ${{ env.RESOURCE_GROUP }} \
-#             --query "properties.provisioningState" -o tsv 2>/dev/null || echo "NotFound")
-          
-#           echo "Container App status: $APP_STATUS"
-          
-#           if [ "$APP_STATUS" = "NotFound" ]; then
-#             echo "Container App does not exist. Creating new Container App..."
-            
-#             # Ensure ACR permissions and create app in parallel
-#             ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "id" -o tsv)
-            
-#             # Assign role (if needed) and create app simultaneously
-#             az role assignment create \
-#               --assignee ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }} \
-#               --role "AcrPull" \
-#               --scope $ACR_ID \
-#               --only-show-errors &
-            
-#             az containerapp create \
-#               --name ${{ env.API_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
-#               --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }} \
-#               --user-assigned $IDENTITY_ID \
-#               --registry-server ${{ env.REGISTRY_URL }} \
-#               --registry-identity $IDENTITY_ID \
-#               --ingress external \
-#               --target-port 8000 \
-#               --cpu 0.5 \
-#               --memory 1Gi
-              
-#           elif [ "$APP_STATUS" = "Failed" ]; then
-#             echo "Container App is in Failed state. Deleting and recreating..."
-            
-#             # Fast deletion without waiting
-#             az containerapp delete \
-#               --name ${{ env.API_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --yes --no-wait
-            
-#             # Brief wait for deletion to register
-#             sleep 5
-            
-#             ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "id" -o tsv)
-            
-#             # Assign role and create app in parallel
-#             az role assignment create \
-#               --assignee ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }} \
-#               --role "AcrPull" \
-#               --scope $ACR_ID \
-#               --only-show-errors &
-            
-#             az containerapp create \
-#               --name ${{ env.API_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
-#               --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }} \
-#               --user-assigned $IDENTITY_ID \
-#               --registry-server ${{ env.REGISTRY_URL }} \
-#               --registry-identity $IDENTITY_ID \
-#               --ingress external \
-#               --target-port 8000 \
-#               --cpu 0.5 \
-#               --memory 1Gi
-              
-#           else
-#             echo "Container App exists and is healthy. Updating..."
-            
-#             # Quick update without redundant operations
-#             az containerapp update \
-#               --name ${{ env.API_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
-#           fi
-            
-#           echo "Deployment completed successfully!"
+      - name: Install Nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Log in with Azure Developer CLI (Federated Credentials)
+        if: ${{ env.AZURE_CLIENT_ID != '' }}
+        run: |
+          azd auth login `
+            --client-id "$Env:AZURE_CLIENT_ID" `
+            --federated-credential-provider "github" `
+            --tenant-id "$Env:AZURE_TENANT_ID"
+        shell: pwsh
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Provision Infrastructure
+        run: azd provision --no-prompt --no-state
+        env:
+          AZD_INITIAL_ENVIRONMENT_CONFIG: ${{ secrets.AZD_INITIAL_ENVIRONMENT_CONFIG }}
+          AZURE_SERVER_APP_SECRET: ${{ secrets.AZURE_SERVER_APP_SECRET }}
+          AZURE_CLIENT_APP_SECRET: ${{ secrets.AZURE_CLIENT_APP_SECRET }}
+
+      - name: Deploy Application
+        run: azd deploy --no-prompt
+        
+      - name: Post-provision
+        shell: sh
+        working-directory: ./
+        run: infra/hooks/postprovision.sh
