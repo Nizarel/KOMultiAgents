@@ -60,13 +60,26 @@ jobs:
           IDENTITY_ID=$(az identity list \
             --query "[?clientId=='${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}'].id | [0]" -o tsv)
           
+          if [ -z "$IDENTITY_ID" ]; then
+            echo "ERROR: Could not find managed identity with client ID ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}"
+            exit 1
+          fi
+          
           echo "Using managed identity: $IDENTITY_ID"
           
-          # Update container app with the new image and ensure it uses the managed identity
+          # Update container app with the new image
+          echo "Updating container app with new image..."
           az containerapp update \
             --name ${{ env.API_IMAGE_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }} \
-            --user-assigned $IDENTITY_ID \
-            --registry-server ${{ env.REGISTRY_URL }} \
-            --registry-identity $IDENTITY_ID
+            --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
+            
+          # Configure registry authentication with managed identity
+          echo "Configuring registry authentication..."
+          az containerapp registry set \
+            --name ${{ env.API_IMAGE_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --server ${{ env.REGISTRY_URL }} \
+            --identity $IDENTITY_ID
+            
+          echo "Deployment completed successfully!"
