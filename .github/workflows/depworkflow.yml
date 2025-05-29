@@ -24,7 +24,7 @@ env:
   RESOURCE_GROUP: rg-crtwriter
   
   API_IMAGE_NAME: agent-api20
-#   WEB_IMAGE_NAME: agent-web3
+  WEB_IMAGE_NAME: agent-web20
 
 jobs:
   build-and-deploy:
