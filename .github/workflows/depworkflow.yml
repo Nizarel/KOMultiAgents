@@ -70,6 +70,8 @@ jobs:
       - name: Log in to Azure Container Registry
         run: |
           az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+          # Enable admin user for ACR (if not already enabled)
+          az acr update --name ${{ env.AZURE_CONTAINER_REGISTRY }} --admin-enabled true
       - name: Build and push API Docker image
         uses: docker/build-push-action@v5
         with:
@@ -94,6 +96,10 @@ jobs:
 
       - name: Deploy API to Azure Container Apps
         run: |
+          # Get ACR admin credentials
+          ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
+          
           # Check if the container app exists
           if az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             echo "✅ Updating existing API container app..."
@@ -106,12 +112,6 @@ jobs:
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-            # Assign AcrPull role to the container app's managed identity (update path)
-            API_PRINCIPAL_ID=$(az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" -o tsv)
-            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query id -o tsv)
-            az role assignment create --assignee $API_PRINCIPAL_ID --role AcrPull --scope $ACR_ID || true
-            echo "Waiting for RBAC propagation..."
-            sleep 10
           else
             echo "🆕 Creating new API container app..."
             az containerapp create \
@@ -127,20 +127,19 @@ jobs:
               --memory 1Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-identity system \
+              --registry-username ${{ secrets.ACR_USERNAME }} \
+              --registry-password ${{ secrets.ACR_PASSWORD }} \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-            # Assign AcrPull role to the container app's managed identity (create path)
-            API_PRINCIPAL_ID=$(az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" -o tsv)
-            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query id -o tsv)
-            az role assignment create --assignee $API_PRINCIPAL_ID --role AcrPull --scope $ACR_ID || true
-            echo "Waiting for RBAC propagation..."
-            sleep 10
           fi
       - name: Deploy Web to Azure Container Apps
         run: |
+          # Get ACR admin credentials
+          ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
+          
           # Check if the container app exists
           if az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             echo "✅ Updating existing Web container app..."
@@ -153,12 +152,6 @@ jobs:
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-            # Assign AcrPull role to the container app's managed identity (update path)
-            WEB_PRINCIPAL_ID=$(az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" -o tsv)
-            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query id -o tsv)
-            az role assignment create --assignee $WEB_PRINCIPAL_ID --role AcrPull --scope $ACR_ID || true
-            echo "Waiting for RBAC propagation..."
-            sleep 10
           else
             echo "🆕 Creating new Web container app..."
             az containerapp create \
@@ -174,17 +167,12 @@ jobs:
               --memory 0.5Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-identity system \
+              --registry-username ${{ secrets.ACR_USERNAME }} \
+              --registry-password ${{ secrets.ACR_PASSWORD }} \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-            # Assign AcrPull role to the container app's managed identity (create path)
-            WEB_PRINCIPAL_ID=$(az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" -o tsv)
-            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query id -o tsv)
-            az role assignment create --assignee $WEB_PRINCIPAL_ID --role AcrPull --scope $ACR_ID || true
-            echo "Waiting for RBAC propagation..."
-            sleep 10
           fi
     #   - name: Get deployment URLs and create summary
     #     id: deployment
