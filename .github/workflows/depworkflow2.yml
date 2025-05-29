@@ -3,13 +3,13 @@ name: Trigger auto deployment for agent-api2
 # When this action will be executed
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ optimize-deployment-workflow, develop ]
     paths:
       - 'src/api/**'
       - 'src/web/**'
       - '.github/workflows/depworkflow2.yml'
   pull_request:
-    branches: [ master ]
+    branches: [ optimize-deployment-workflow ]
     paths:
       - 'src/api/**'
       - 'src/web/**'
