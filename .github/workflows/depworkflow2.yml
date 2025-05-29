@@ -51,8 +51,19 @@ jobs:
       - name: Build and push container image
         run: |
           cd ${{ github.workspace }}/src/api
-          docker build -t ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }} .
-          docker push ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
+          
+          # Use Docker buildx for better performance and caching
+          docker buildx create --use --driver docker-container --name builder || true
+          
+          # Build with cache layers and push directly
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from type=registry,ref=${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:cache \
+            --cache-to type=registry,ref=${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:cache,mode=max \
+            --tag ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }} \
+            --tag ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:latest \
+            --push \
+            .
 
       - name: Deploy to Container Apps
         run: |
@@ -79,19 +90,16 @@ jobs:
           if [ "$APP_STATUS" = "NotFound" ]; then
             echo "Container App does not exist. Creating new Container App..."
             
-            # Get ACR resource ID for role assignment
+            # Ensure ACR permissions and create app in parallel
             ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "id" -o tsv)
-            echo "ACR Resource ID: $ACR_ID"
             
-            # Ensure the managed identity has AcrPull permissions
-            echo "Assigning AcrPull role to managed identity..."
+            # Assign role (if needed) and create app simultaneously
             az role assignment create \
               --assignee ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }} \
               --role "AcrPull" \
               --scope $ACR_ID \
-              --only-show-errors || echo "Role assignment may already exist"
+              --only-show-errors &
             
-            # Create new Container App with managed identity
             az containerapp create \
               --name ${{ env.API_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -108,28 +116,24 @@ jobs:
           elif [ "$APP_STATUS" = "Failed" ]; then
             echo "Container App is in Failed state. Deleting and recreating..."
             
-            # Delete the failed Container App
+            # Fast deletion without waiting
             az containerapp delete \
               --name ${{ env.API_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
-              --yes
+              --yes --no-wait
             
-            # Wait a moment for deletion to complete
-            sleep 10
+            # Brief wait for deletion to register
+            sleep 5
             
-            # Get ACR resource ID for role assignment
             ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "id" -o tsv)
-            echo "ACR Resource ID: $ACR_ID"
             
-            # Ensure the managed identity has AcrPull permissions
-            echo "Assigning AcrPull role to managed identity..."
+            # Assign role and create app in parallel
             az role assignment create \
               --assignee ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }} \
               --role "AcrPull" \
               --scope $ACR_ID \
-              --only-show-errors || echo "Role assignment may already exist"
+              --only-show-errors &
             
-            # Create new Container App with managed identity
             az containerapp create \
               --name ${{ env.API_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
@@ -146,35 +150,7 @@ jobs:
           else
             echo "Container App exists and is healthy. Updating..."
             
-            # Ensure the managed identity is assigned to the container app
-            echo "Assigning managed identity to container app..."
-            az containerapp identity assign \
-              --name ${{ env.API_IMAGE_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --user-assigned $IDENTITY_ID || echo "Identity may already be assigned"
-            
-            # Get ACR resource ID for role assignment
-            ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "id" -o tsv)
-            echo "ACR Resource ID: $ACR_ID"
-            
-            # Ensure the managed identity has AcrPull permissions
-            echo "Assigning AcrPull role to managed identity..."
-            az role assignment create \
-              --assignee ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }} \
-              --role "AcrPull" \
-              --scope $ACR_ID \
-              --only-show-errors || echo "Role assignment may already exist"
-            
-            # Configure registry authentication with managed identity
-            echo "Configuring registry authentication..."
-            az containerapp registry set \
-              --name ${{ env.API_IMAGE_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --server ${{ env.REGISTRY_URL }} \
-              --identity $IDENTITY_ID
-            
-            # Update container app with the new image
-            echo "Updating container app with new image..."
+            # Quick update without redundant operations
             az containerapp update \
               --name ${{ env.API_IMAGE_NAME }} \
               --resource-group ${{ env.RESOURCE_GROUP }} \
