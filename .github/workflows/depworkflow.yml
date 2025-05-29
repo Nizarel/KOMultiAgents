@@ -72,6 +72,17 @@ jobs:
           az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
           # Enable admin user for ACR (if not already enabled)
           az acr update --name ${{ env.AZURE_CONTAINER_REGISTRY }} --admin-enabled true
+          
+          # Verify admin credentials are available
+          echo "🔍 Verifying ACR admin credentials..."
+          ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
+          if [ -n "$ACR_USERNAME" ]; then
+            echo "✅ ACR admin credentials successfully retrieved"
+            echo "🔑 Username: $ACR_USERNAME"
+          else
+            echo "❌ Failed to retrieve ACR admin credentials"
+            exit 1
+          fi
       - name: Build and push API Docker image
         uses: docker/build-push-action@v5
         with:
@@ -100,6 +111,9 @@ jobs:
           ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
           ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
           
+          echo "🔑 Retrieved ACR credentials for registry: ${{ env.REGISTRY_URL }}"
+          echo "🔑 ACR Username: ${ACR_USERNAME}"
+          
           # Check if the container app exists
           if az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
             echo "✅ Updating existing API container app..."
@@ -127,8 +141,8 @@ jobs:
               --memory 1Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-username ${{ secrets.ACR_USERNAME }} \
-              --registry-password ${{ secrets.ACR_PASSWORD }} \
+              --registry-username "${ACR_USERNAME}" \
+              --registry-password "${ACR_PASSWORD}" \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -139,6 +153,9 @@ jobs:
           # Get ACR admin credentials
           ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
           ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
+          
+          echo "🔑 Retrieved ACR credentials for registry: ${{ env.REGISTRY_URL }}"
+          echo "🔑 ACR Username: ${ACR_USERNAME}"
           
           # Check if the container app exists
           if az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
@@ -167,8 +184,8 @@ jobs:
               --memory 0.5Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
-              --registry-username ${{ secrets.ACR_USERNAME }} \
-              --registry-password ${{ secrets.ACR_PASSWORD }} \
+              --registry-username "${ACR_USERNAME}" \
+              --registry-password "${ACR_PASSWORD}" \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
