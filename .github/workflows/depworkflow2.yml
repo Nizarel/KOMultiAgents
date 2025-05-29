@@ -1,0 +1,59 @@
+name: Trigger auto deployment for agent-api2
+
+# When this action will be executed
+on:
+  push:
+    branches: [ master, develop ]
+    paths:
+      - 'src/api/**'
+      - 'src/web/**'
+      - '.github/workflows/depworkflow2.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'src/api/**'
+      - 'src/web/**'
+  workflow_dispatch:
+    
+env:
+  # Azure Container Registry details
+  AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
+  REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
+  
+  # Container App Environment
+  CONTAINER_APPS_ENVIRONMENT: agent-ca-env
+  RESOURCE_GROUP: rg-crtwriter
+  
+  API_IMAGE_NAME: agent-api33
+  WEB_IMAGE_NAME: agent-web33
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}/src/api
+        #   _dockerfilePathKey_: _dockerfilePath_
+          registryUrl: ${{ env.REGISTRY_URL }}
+          registryUsername: ${{ secrets.ACR_USERNAME }}
+          registryPassword: ${{ secrets.ACR_PASSWORD }}
+          containerAppName: ${{ env.API_IMAGE_NAME }}
+          containerAppEnvironment: ${{ env.CONTAINER_APPS_ENVIRONMENT }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          imageToBuild: "${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.API_IMAGE_NAME }}:${SHORT_SHA}"
