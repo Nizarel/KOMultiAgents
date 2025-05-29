@@ -1,299 +1,299 @@
-# name: Azure Container Apps Deploy
+name: Azure Container Apps Deploy
 
-# on:
-#   push:
-#     branches: [ master, develop ]
-#     paths:
-#       - 'src/api/**'
-#       - 'src/web/**'
-#       - '.github/workflows/depworkflow.yml'
-#   pull_request:
-#     branches: [ master ]
-#     paths:
-#       - 'src/api/**'
-#       - 'src/web/**'
-#   workflow_dispatch:
+on:
+  push:
+    branches: [ master, develop ]
+    paths:
+      - 'src/api/**'
+      - 'src/web/**'
+      - '.github/workflows/depworkflow.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'src/api/**'
+      - 'src/web/**'
+  workflow_dispatch:
     
-# env:
-#   # Azure Container Registry details
-#   AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
-#   REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
+env:
+  # Azure Container Registry details
+  AZURE_CONTAINER_REGISTRY: cr3rbky3yz3zumq
+  REGISTRY_URL: cr3rbky3yz3zumq.azurecr.io
   
-#   # Container App Environment
-#   CONTAINER_APPS_ENVIRONMENT: agent-ca-env
-#   RESOURCE_GROUP: rg-crtwriter
+  # Container App Environment
+  CONTAINER_APPS_ENVIRONMENT: agent-ca-env
+  RESOURCE_GROUP: rg-crtwriter
   
-#   API_IMAGE_NAME: agent-api3
+  API_IMAGE_NAME: agent-api20
 #   WEB_IMAGE_NAME: agent-web3
 
-# jobs:
-#   build-and-deploy:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       id-token: write
-#       contents: read
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
-#     steps:
-#       - name: 'Checkout GitHub Action'
-#         uses: actions/checkout@v4
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
 
-#       - name: Set up variables
-#         id: vars
-#         run: |
-#           BUILD_NUMBER=${{ github.run_number }}
-#           SHORT_SHA=${GITHUB_SHA::8}
-#           BRANCH_NAME=${GITHUB_REF#refs/heads/}
+      - name: Set up variables
+        id: vars
+        run: |
+          BUILD_NUMBER=${{ github.run_number }}
+          SHORT_SHA=${GITHUB_SHA::8}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
           
-#           # Set image tags
-#           API_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${BUILD_NUMBER}"
-#           WEB_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.WEB_IMAGE_NAME }}:${BUILD_NUMBER}"
+          # Set image tags
+          API_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${BUILD_NUMBER}"
+          WEB_IMAGE_TAG="${{ env.REGISTRY_URL }}/${{ env.WEB_IMAGE_NAME }}:${BUILD_NUMBER}"
           
-#           echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
-#           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-#           echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
-#           echo "api_image_tag=${API_IMAGE_TAG}" >> $GITHUB_OUTPUT
-#           echo "web_image_tag=${WEB_IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          echo "api_image_tag=${API_IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "web_image_tag=${WEB_IMAGE_TAG}" >> $GITHUB_OUTPUT
           
-#           echo "🏷️ Image tags:"
-#           echo "API: ${API_IMAGE_TAG}"
-#           echo "Web: ${WEB_IMAGE_TAG}"
-#       - name: Azure Login
-#         uses: azure/login@v1
-#         with:
-#           client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
-#           tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
-#           subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
+          echo "🏷️ Image tags:"
+          echo "API: ${API_IMAGE_TAG}"
+          echo "Web: ${WEB_IMAGE_TAG}"
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AGENTAPI2_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AGENTAPI2_AZURE_SUBSCRIPTION_ID }}
 
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-#       - name: Log in to Azure Container Registry
-#         run: |
-#           az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
-#           # Enable admin user for ACR (if not already enabled)
-#           az acr update --name ${{ env.AZURE_CONTAINER_REGISTRY }} --admin-enabled true
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+          # Enable admin user for ACR (if not already enabled)
+          az acr update --name ${{ env.AZURE_CONTAINER_REGISTRY }} --admin-enabled true
           
-#           # Verify admin credentials are available
-#           echo "🔍 Verifying ACR admin credentials..."
-#           ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
-#           if [ -n "$ACR_USERNAME" ]; then
-#             echo "✅ ACR admin credentials successfully retrieved"
-#             echo "🔑 Username: $ACR_USERNAME"
-#           else
-#             echo "❌ Failed to retrieve ACR admin credentials"
-#             exit 1
-#           fi
-#       - name: Build and push API Docker image
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: ./src/api
-#           file: ./src/api/Dockerfile
-#           push: true
-#           tags: ${{ steps.vars.outputs.api_image_tag }}
-#           cache-from: type=gha
-#           cache-to: type=gha,mode=max
-#           platforms: linux/amd64
+          # Verify admin credentials are available
+          echo "🔍 Verifying ACR admin credentials..."
+          ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
+          if [ -n "$ACR_USERNAME" ]; then
+            echo "✅ ACR admin credentials successfully retrieved"
+            echo "🔑 Username: $ACR_USERNAME"
+          else
+            echo "❌ Failed to retrieve ACR admin credentials"
+            exit 1
+          fi
+      - name: Build and push API Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/api
+          file: ./src/api/Dockerfile
+          push: true
+          tags: ${{ steps.vars.outputs.api_image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
 
-#       - name: Build and push Web Docker image
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: ./src/web
-#           file: ./src/web/Dockerfile
-#           push: true
-#           tags: ${{ steps.vars.outputs.web_image_tag }}
-#           cache-from: type=gha
-#           cache-to: type=gha,mode=max
-#           platforms: linux/amd64
+      - name: Build and push Web Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/web
+          file: ./src/web/Dockerfile
+          push: true
+          tags: ${{ steps.vars.outputs.web_image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
 
-#       - name: Deploy API to Azure Container Apps
-#         run: |
-#           # Get ACR admin credentials
-#           ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
-#           ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
+      - name: Deploy API to Azure Container Apps
+        run: |
+          # Get ACR admin credentials
+          ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
           
-#           echo "🔑 Retrieved ACR credentials for registry: ${{ env.REGISTRY_URL }}"
-#           echo "🔑 ACR Username: ${ACR_USERNAME}"
+          echo "🔑 Retrieved ACR credentials for registry: ${{ env.REGISTRY_URL }}"
+          echo "🔑 ACR Username: ${ACR_USERNAME}"
           
-#           # Check if the container app exists
-#           if az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
-#             echo "✅ Updating existing API container app..."
-#             az containerapp update \
-#               --name ${{ env.API_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --image ${{ steps.vars.outputs.api_image_tag }} \
-#               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
-#               --set-env-vars \
-#                 ENVIRONMENT=production \
-#                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-#                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-#           else
-#             echo "🆕 Creating new API container app..."
-#             az containerapp create \
-#               --name ${{ env.API_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
-#               --image ${{ steps.vars.outputs.api_image_tag }} \
-#               --target-port 80 \
-#               --ingress external \
-#               --min-replicas 1 \
-#               --max-replicas 10 \
-#               --cpu 0.5 \
-#               --memory 1Gi \
-#               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
-#               --registry-server ${{ env.REGISTRY_URL }} \
-#               --registry-username "${ACR_USERNAME}" \
-#               --registry-password "${ACR_PASSWORD}" \
-#               --env-vars \
-#                 ENVIRONMENT=production \
-#                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-#                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-#           fi
-#       - name: Deploy Web to Azure Container Apps
-#         run: |
-#           # Get ACR admin credentials
-#           ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
-#           ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
+          # Check if the container app exists
+          if az containerapp show --name ${{ env.API_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
+            echo "✅ Updating existing API container app..."
+            az containerapp update \
+              --name ${{ env.API_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ steps.vars.outputs.api_image_tag }} \
+              --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
+              --set-env-vars \
+                ENVIRONMENT=production \
+                BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
+                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+          else
+            echo "🆕 Creating new API container app..."
+            az containerapp create \
+              --name ${{ env.API_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
+              --image ${{ steps.vars.outputs.api_image_tag }} \
+              --target-port 80 \
+              --ingress external \
+              --min-replicas 1 \
+              --max-replicas 10 \
+              --cpu 0.5 \
+              --memory 1Gi \
+              --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
+              --registry-server ${{ env.REGISTRY_URL }} \
+              --registry-username "${ACR_USERNAME}" \
+              --registry-password "${ACR_PASSWORD}" \
+              --env-vars \
+                ENVIRONMENT=production \
+                BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
+                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+          fi
+      - name: Deploy Web to Azure Container Apps
+        run: |
+          # Get ACR admin credentials
+          ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
           
-#           echo "🔑 Retrieved ACR credentials for registry: ${{ env.REGISTRY_URL }}"
-#           echo "🔑 ACR Username: ${ACR_USERNAME}"
+          echo "🔑 Retrieved ACR credentials for registry: ${{ env.REGISTRY_URL }}"
+          echo "🔑 ACR Username: ${ACR_USERNAME}"
           
-#           # Check if the container app exists
-#           if az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
-#             echo "✅ Updating existing Web container app..."
-#             az containerapp update \
-#               --name ${{ env.WEB_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --image ${{ steps.vars.outputs.web_image_tag }} \
-#               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
-#               --set-env-vars \
-#                 ENVIRONMENT=production \
-#                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-#                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-#           else
-#             echo "🆕 Creating new Web container app..."
-#             az containerapp create \
-#               --name ${{ env.WEB_IMAGE_NAME }} \
-#               --resource-group ${{ env.RESOURCE_GROUP }} \
-#               --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
-#               --image ${{ steps.vars.outputs.web_image_tag }} \
-#               --target-port 80 \
-#               --ingress external \
-#               --min-replicas 1 \
-#               --max-replicas 5 \
-#               --cpu 0.25 \
-#               --memory 0.5Gi \
-#               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
-#               --registry-server ${{ env.REGISTRY_URL }} \
-#               --registry-username "${ACR_USERNAME}" \
-#               --registry-password "${ACR_PASSWORD}" \
-#               --env-vars \
-#                 ENVIRONMENT=production \
-#                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-#                 GIT_SHA=${{ steps.vars.outputs.short_sha }}
-#           fi
-#     #   - name: Get deployment URLs and create summary
-#     #     id: deployment
-#     #     run: |
-#     #       # Wait for deployments to stabilize
-#     #       echo "⏳ Waiting for deployments to stabilize..."
-#     #       sleep 30
+          # Check if the container app exists
+          if az containerapp show --name ${{ env.WEB_IMAGE_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
+            echo "✅ Updating existing Web container app..."
+            az containerapp update \
+              --name ${{ env.WEB_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ steps.vars.outputs.web_image_tag }} \
+              --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
+              --set-env-vars \
+                ENVIRONMENT=production \
+                BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
+                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+          else
+            echo "🆕 Creating new Web container app..."
+            az containerapp create \
+              --name ${{ env.WEB_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
+              --image ${{ steps.vars.outputs.web_image_tag }} \
+              --target-port 80 \
+              --ingress external \
+              --min-replicas 1 \
+              --max-replicas 5 \
+              --cpu 0.25 \
+              --memory 0.5Gi \
+              --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
+              --registry-server ${{ env.REGISTRY_URL }} \
+              --registry-username "${ACR_USERNAME}" \
+              --registry-password "${ACR_PASSWORD}" \
+              --env-vars \
+                ENVIRONMENT=production \
+                BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
+                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+          fi
+    #   - name: Get deployment URLs and create summary
+    #     id: deployment
+    #     run: |
+    #       # Wait for deployments to stabilize
+    #       echo "⏳ Waiting for deployments to stabilize..."
+    #       sleep 30
           
-#     #       # Get Container App URLs
-#     #       API_URL=$(az containerapp show \
-#     #         --name ${{ env.API_IMAGE_NAME }} \
-#     #         --resource-group ${{ env.RESOURCE_GROUP }} \
-#     #         --query "properties.configuration.ingress.fqdn" \
-#     #         --output tsv)
+    #       # Get Container App URLs
+    #       API_URL=$(az containerapp show \
+    #         --name ${{ env.API_IMAGE_NAME }} \
+    #         --resource-group ${{ env.RESOURCE_GROUP }} \
+    #         --query "properties.configuration.ingress.fqdn" \
+    #         --output tsv)
           
-#     #       WEB_URL=$(az containerapp show \
-#     #         --name ${{ env.WEB_IMAGE_NAME }} \
-#     #         --resource-group ${{ env.RESOURCE_GROUP }} \
-#     #         --query "properties.configuration.ingress.fqdn" \
-#     #         --output tsv)
+    #       WEB_URL=$(az containerapp show \
+    #         --name ${{ env.WEB_IMAGE_NAME }} \
+    #         --resource-group ${{ env.RESOURCE_GROUP }} \
+    #         --query "properties.configuration.ingress.fqdn" \
+    #         --output tsv)
           
-#     #       # Set outputs
-#     #       echo "api_url=https://${API_URL}" >> $GITHUB_OUTPUT
-#     #       echo "web_url=https://${WEB_URL}" >> $GITHUB_OUTPUT
+    #       # Set outputs
+    #       echo "api_url=https://${API_URL}" >> $GITHUB_OUTPUT
+    #       echo "web_url=https://${WEB_URL}" >> $GITHUB_OUTPUT
           
-#     #       # Create deployment summary
-#     #       cat >> $GITHUB_STEP_SUMMARY << EOF
-#     #       ## 🚀 Azure Container Apps Deployment Summary
+    #       # Create deployment summary
+    #       cat >> $GITHUB_STEP_SUMMARY << EOF
+    #       ## 🚀 Azure Container Apps Deployment Summary
           
-#     #       ### ✅ Successfully Deployed Applications
+    #       ### ✅ Successfully Deployed Applications
           
-#     #       | Application | URL | Image Tag |
-#     #       |-------------|-----|-----------|
-#     #       | **API** | [https://${API_URL}](https://${API_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
-#     #       | **Web** | [https://${WEB_URL}](https://${WEB_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
+    #       | Application | URL | Image Tag |
+    #       |-------------|-----|-----------|
+    #       | **API** | [https://${API_URL}](https://${API_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
+    #       | **Web** | [https://${WEB_URL}](https://${WEB_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
           
-#     #       ### 📦 Container Images
-#     #       - **API Image**: \`${{ steps.vars.outputs.api_image_tag }}\`
-#     #       - **Web Image**: \`${{ steps.vars.outputs.web_image_tag }}\`
+    #       ### 📦 Container Images
+    #       - **API Image**: \`${{ steps.vars.outputs.api_image_tag }}\`
+    #       - **Web Image**: \`${{ steps.vars.outputs.web_image_tag }}\`
           
-#     #       ### 🔧 Build Information
-#     #       - **Build Number**: ${{ steps.vars.outputs.build_number }}
-#     #       - **Git SHA**: \`${{ steps.vars.outputs.short_sha }}\`
-#     #       - **Branch**: \`${{ steps.vars.outputs.branch_name }}\`
-#     #       - **Environment**: \`${{ env.CONTAINER_APPS_ENVIRONMENT }}\`
-#     #       - **Resource Group**: \`${{ env.RESOURCE_GROUP }}\`
-#     #       EOF
+    #       ### 🔧 Build Information
+    #       - **Build Number**: ${{ steps.vars.outputs.build_number }}
+    #       - **Git SHA**: \`${{ steps.vars.outputs.short_sha }}\`
+    #       - **Branch**: \`${{ steps.vars.outputs.branch_name }}\`
+    #       - **Environment**: \`${{ env.CONTAINER_APPS_ENVIRONMENT }}\`
+    #       - **Resource Group**: \`${{ env.RESOURCE_GROUP }}\`
+    #       EOF
 
-#     #   - name: Perform health checks
-#     #     run: |
-#     #       echo "🔍 Performing application health checks..."
+    #   - name: Perform health checks
+    #     run: |
+    #       echo "🔍 Performing application health checks..."
           
-#     #       API_URL="${{ steps.deployment.outputs.api_url }}"
-#     #       WEB_URL="${{ steps.deployment.outputs.web_url }}"
+    #       API_URL="${{ steps.deployment.outputs.api_url }}"
+    #       WEB_URL="${{ steps.deployment.outputs.web_url }}"
           
-#     #       # API Health Check
-#     #       echo "Checking API health at: $API_URL"
-#     #       API_HEALTHY=false
+    #       # API Health Check
+    #       echo "Checking API health at: $API_URL"
+    #       API_HEALTHY=false
           
-#     #       for attempt in {1..6}; do
-#     #         echo "🔄 API health check attempt $attempt/6..."
+    #       for attempt in {1..6}; do
+    #         echo "🔄 API health check attempt $attempt/6..."
             
-#     #         if curl -f -s --max-time 10 "$API_URL/health" &>/dev/null || \
-#     #            curl -f -s --max-time 10 "$API_URL/" &>/dev/null || \
-#     #            curl -f -s --max-time 10 "$API_URL/docs" &>/dev/null; then
-#     #           echo "✅ API is healthy and responding"
-#     #           API_HEALTHY=true
-#     #           break
-#     #         else
-#     #           echo "⏳ API not ready, waiting 15 seconds..."
-#     #           sleep 15
-#     #         fi
-#     #       done
+    #         if curl -f -s --max-time 10 "$API_URL/health" &>/dev/null || \
+    #            curl -f -s --max-time 10 "$API_URL/" &>/dev/null || \
+    #            curl -f -s --max-time 10 "$API_URL/docs" &>/dev/null; then
+    #           echo "✅ API is healthy and responding"
+    #           API_HEALTHY=true
+    #           break
+    #         else
+    #           echo "⏳ API not ready, waiting 15 seconds..."
+    #           sleep 15
+    #         fi
+    #       done
           
-#     #       # Web Health Check
-#     #       echo "Checking Web application health at: $WEB_URL"
-#     #       WEB_HEALTHY=false
+    #       # Web Health Check
+    #       echo "Checking Web application health at: $WEB_URL"
+    #       WEB_HEALTHY=false
           
-#     #       for attempt in {1..6}; do
-#     #         echo "🔄 Web health check attempt $attempt/6..."
+    #       for attempt in {1..6}; do
+    #         echo "🔄 Web health check attempt $attempt/6..."
             
-#     #         if curl -f -s --max-time 10 "$WEB_URL" &>/dev/null; then
-#     #           echo "✅ Web application is healthy and responding"
-#     #           WEB_HEALTHY=true
-#     #           break
-#     #         else
-#     #           echo "⏳ Web application not ready, waiting 15 seconds..."
-#     #           sleep 15
-#     #         fi
-#     #       done
+    #         if curl -f -s --max-time 10 "$WEB_URL" &>/dev/null; then
+    #           echo "✅ Web application is healthy and responding"
+    #           WEB_HEALTHY=true
+    #           break
+    #         else
+    #           echo "⏳ Web application not ready, waiting 15 seconds..."
+    #           sleep 15
+    #         fi
+    #       done
           
-#     #       # Update summary with health check results
-#     #       cat >> $GITHUB_STEP_SUMMARY << EOF
+    #       # Update summary with health check results
+    #       cat >> $GITHUB_STEP_SUMMARY << EOF
           
-#     #       ### 🏥 Health Check Results
-#     #       - **API Health**: $([ "$API_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
-#     #       - **Web Health**: $([ "$WEB_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
+    #       ### 🏥 Health Check Results
+    #       - **API Health**: $([ "$API_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
+    #       - **Web Health**: $([ "$WEB_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
           
-#     #       EOF
+    #       EOF
           
-#     #       echo "🎉 Deployment completed successfully!"
+    #       echo "🎉 Deployment completed successfully!"
 
-#     #   - name: Azure logout
-#     #     if: always()
-#     #     run: |
-#     #       az logout || true
-#     #       echo "🔐 Logged out from Azure CLI"
+    #   - name: Azure logout
+    #     if: always()
+    #     run: |
+    #       az logout || true
+    #       echo "🔐 Logged out from Azure CLI"
