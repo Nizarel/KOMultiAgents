@@ -107,6 +107,11 @@ jobs:
 
       - name: Deploy API to Azure Container Apps
         run: |
+          # Get the managed identity resource ID
+          MANAGED_IDENTITY_ID="/subscriptions/b6e08f96-9a62-46d0-b276-8dc80e6bc02a/resourceGroups/${{ env.RESOURCE_GROUP }}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-3rbky3yz3zumq"
+          
+          echo "🔑 Using managed identity: $MANAGED_IDENTITY_ID"
+          
           # Get ACR admin credentials
           ACR_USERNAME=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "username" -o tsv)
           ACR_PASSWORD=$(az acr credential show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "passwords[0].value" -o tsv)
@@ -122,6 +127,7 @@ jobs:
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --image ${{ steps.vars.outputs.api_image_tag }} \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
+              --user-assigned "$MANAGED_IDENTITY_ID" \
               --set-env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -166,6 +172,7 @@ jobs:
               --registry-server ${{ env.REGISTRY_URL }} \
               --registry-username "${ACR_USERNAME}" \
               --registry-password "${ACR_PASSWORD}" \
+              --user-assigned "$MANAGED_IDENTITY_ID" \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -194,6 +201,8 @@ jobs:
                 WEB_SERVICE_ACA_NAME=agent-web \
                 WEB_SERVICE_ACA_URI=https://agent-web.victoriousbush-684c2a61.eastus2.azurecontainerapps.io
           fi
+          
+          echo "✅ Managed identity assigned to Container App successfully!"
       - name: Deploy Web to Azure Container Apps
         run: |
           # Get ACR admin credentials
