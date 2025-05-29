@@ -127,7 +127,6 @@ jobs:
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --image ${{ steps.vars.outputs.api_image_tag }} \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
-              --user-assigned "$MANAGED_IDENTITY_ID" \
               --set-env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -155,6 +154,13 @@ jobs:
                 BING_SEARCH_ENDPOINT=https://api.bing.microsoft.com/ \
                 WEB_SERVICE_ACA_NAME=agent-web \
                 WEB_SERVICE_ACA_URI=https://agent-web.victoriousbush-684c2a61.eastus2.azurecontainerapps.io
+            
+            # Assign managed identity to existing container app
+            echo "🔑 Assigning managed identity to existing container app..."
+            az containerapp identity assign \
+              --name ${{ env.API_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --user-assigned "$MANAGED_IDENTITY_ID"
           else
             echo "🆕 Creating new API container app..."
             az containerapp create \
@@ -172,7 +178,7 @@ jobs:
               --registry-server ${{ env.REGISTRY_URL }} \
               --registry-username "${ACR_USERNAME}" \
               --registry-password "${ACR_PASSWORD}" \
-              --user-assigned "$MANAGED_IDENTITY_ID" \
+              --assign-identity "$MANAGED_IDENTITY_ID" \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
