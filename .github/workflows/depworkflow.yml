@@ -23,8 +23,8 @@ env:
   CONTAINER_APPS_ENVIRONMENT: agent-ca-env
   RESOURCE_GROUP: rg-crtwriter
   
-  API_IMAGE_NAME: agent-api20
-  WEB_IMAGE_NAME: agent-web20
+  API_IMAGE_NAME: agent-api70
+  WEB_IMAGE_NAME: agent-web70
 
 jobs:
   build-and-deploy:
@@ -125,7 +125,30 @@ jobs:
               --set-env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+                GIT_SHA=${{ steps.vars.outputs.short_sha }} \
+                PORT=8000 \
+                PYTHONUNBUFFERED=1 \
+                API_SERVICE_ACA_NAME=agent-api \
+                APPINSIGHTS_CONNECTIONSTRING="InstrumentationKey=a941babe-3b75-463e-ae64-adbb4a268a54;IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus2.livediagnostics.monitor.azure.com/;ApplicationId=878cc89a-8369-4912-bc33-90d275dc6837" \
+                AZURE_AI_PROJECT_NAME=ai-project-3rbky3yz3zumq \
+                AZURE_CLIENT_ID=ea7bb5ca-bcaa-4cc3-9f05-9233a5c651b7 \
+                AZURE_CONTAINER_REGISTRY_NAME=cr3rbky3yz3zumq \
+                AZURE_EMBEDDING_NAME=text-embedding-ada-002 \
+                AZURE_ENV_NAME=crtwriter \
+                AZURE_LOCATION=eastus2 \
+                AZURE_OPENAI_4_EVAL_DEPLOYMENT_NAME=gpt-4-evals \
+                AZURE_OPENAI_API_VERSION=2024-08-01-preview \
+                AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4 \
+                AZURE_OPENAI_ENDPOINT=https://aoai-3rbky3yz3zumq.openai.azure.com/ \
+                AZURE_OPENAI_NAME=aoai-3rbky3yz3zumq \
+                AZURE_RESOURCE_GROUP=rg-crtwriter \
+                AZURE_SEARCH_ENDPOINT=https://srch-3rbky3yz3zumq.search.windows.net/ \
+                AZURE_SEARCH_NAME=srch-3rbky3yz3zumq \
+                AZURE_SUBSCRIPTION_ID=b6e08f96-9a62-46d0-b276-8dc80e6bc02a \
+                AZURE_TENANT_ID=16b3c013-d300-468d-ac64-7eda0820b6d3 \
+                BING_SEARCH_ENDPOINT=https://api.bing.microsoft.com/ \
+                WEB_SERVICE_ACA_NAME=agent-web \
+                WEB_SERVICE_ACA_URI=https://agent-web.victoriousbush-684c2a61.eastus2.azurecontainerapps.io
           else
             echo "🆕 Creating new API container app..."
             az containerapp create \
@@ -133,7 +156,7 @@ jobs:
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --environment ${{ env.CONTAINER_APPS_ENVIRONMENT }} \
               --image ${{ steps.vars.outputs.api_image_tag }} \
-              --target-port 80 \
+              --target-port 8000 \
               --ingress external \
               --min-replicas 1 \
               --max-replicas 10 \
@@ -146,7 +169,30 @@ jobs:
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+                GIT_SHA=${{ steps.vars.outputs.short_sha }} \
+                PORT=8000 \
+                PYTHONUNBUFFERED=1 \
+                API_SERVICE_ACA_NAME=agent-api \
+                APPINSIGHTS_CONNECTIONSTRING="InstrumentationKey=a941babe-3b75-463e-ae64-adbb4a268a54;IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus2.livediagnostics.monitor.azure.com/;ApplicationId=878cc89a-8369-4912-bc33-90d275dc6837" \
+                AZURE_AI_PROJECT_NAME=ai-project-3rbky3yz3zumq \
+                AZURE_CLIENT_ID=ea7bb5ca-bcaa-4cc3-9f05-9233a5c651b7 \
+                AZURE_CONTAINER_REGISTRY_NAME=cr3rbky3yz3zumq \
+                AZURE_EMBEDDING_NAME=text-embedding-ada-002 \
+                AZURE_ENV_NAME=crtwriter \
+                AZURE_LOCATION=eastus2 \
+                AZURE_OPENAI_4_EVAL_DEPLOYMENT_NAME=gpt-4-evals \
+                AZURE_OPENAI_API_VERSION=2024-08-01-preview \
+                AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4 \
+                AZURE_OPENAI_ENDPOINT=https://aoai-3rbky3yz3zumq.openai.azure.com/ \
+                AZURE_OPENAI_NAME=aoai-3rbky3yz3zumq \
+                AZURE_RESOURCE_GROUP=rg-crtwriter \
+                AZURE_SEARCH_ENDPOINT=https://srch-3rbky3yz3zumq.search.windows.net/ \
+                AZURE_SEARCH_NAME=srch-3rbky3yz3zumq \
+                AZURE_SUBSCRIPTION_ID=b6e08f96-9a62-46d0-b276-8dc80e6bc02a \
+                AZURE_TENANT_ID=16b3c013-d300-468d-ac64-7eda0820b6d3 \
+                BING_SEARCH_ENDPOINT=https://api.bing.microsoft.com/ \
+                WEB_SERVICE_ACA_NAME=agent-web \
+                WEB_SERVICE_ACA_URI=https://agent-web.victoriousbush-684c2a61.eastus2.azurecontainerapps.io
           fi
       - name: Deploy Web to Azure Container Apps
         run: |
@@ -168,7 +214,9 @@ jobs:
               --set-env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+                GIT_SHA=${{ steps.vars.outputs.short_sha }} \
+                API_SERVICE_ACA_NAME=agent-api \
+                WEB_SERVICE_ACA_NAME=agent-web
           else
             echo "🆕 Creating new Web container app..."
             az containerapp create \
@@ -180,8 +228,8 @@ jobs:
               --ingress external \
               --min-replicas 1 \
               --max-replicas 5 \
-              --cpu 0.25 \
-              --memory 0.5Gi \
+              --cpu 0.5 \
+              --memory 1Gi \
               --revision-suffix "r${{ steps.vars.outputs.build_number }}" \
               --registry-server ${{ env.REGISTRY_URL }} \
               --registry-username "${ACR_USERNAME}" \
@@ -189,111 +237,70 @@ jobs:
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
-                GIT_SHA=${{ steps.vars.outputs.short_sha }}
+                GIT_SHA=${{ steps.vars.outputs.short_sha }} \
+                API_SERVICE_ACA_NAME=agent-api \
+                WEB_SERVICE_ACA_NAME=agent-web
           fi
-    #   - name: Get deployment URLs and create summary
-    #     id: deployment
-    #     run: |
-    #       # Wait for deployments to stabilize
-    #       echo "⏳ Waiting for deployments to stabilize..."
-    #       sleep 30
+      - name: Get deployment URLs and create summary
+        id: deployment
+        run: |
+          # Wait for deployments to stabilize
+          echo "⏳ Waiting for deployments to stabilize..."
+          sleep 30
           
-    #       # Get Container App URLs
-    #       API_URL=$(az containerapp show \
-    #         --name ${{ env.API_IMAGE_NAME }} \
-    #         --resource-group ${{ env.RESOURCE_GROUP }} \
-    #         --query "properties.configuration.ingress.fqdn" \
-    #         --output tsv)
+          # Get Container App URLs
+          API_URL=$(az containerapp show \
+            --name ${{ env.API_IMAGE_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv)
           
-    #       WEB_URL=$(az containerapp show \
-    #         --name ${{ env.WEB_IMAGE_NAME }} \
-    #         --resource-group ${{ env.RESOURCE_GROUP }} \
-    #         --query "properties.configuration.ingress.fqdn" \
-    #         --output tsv)
+          WEB_URL=$(az containerapp show \
+            --name ${{ env.WEB_IMAGE_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv)
           
-    #       # Set outputs
-    #       echo "api_url=https://${API_URL}" >> $GITHUB_OUTPUT
-    #       echo "web_url=https://${WEB_URL}" >> $GITHUB_OUTPUT
+          # Set outputs
+          echo "api_url=https://${API_URL}" >> $GITHUB_OUTPUT
+          echo "web_url=https://${WEB_URL}" >> $GITHUB_OUTPUT
           
-    #       # Create deployment summary
-    #       cat >> $GITHUB_STEP_SUMMARY << EOF
-    #       ## 🚀 Azure Container Apps Deployment Summary
+          echo "🎉 Deployment completed successfully!"
+          echo "🌐 API URL: https://${API_URL}"
+          echo "🌐 Web URL: https://${WEB_URL}"
           
-    #       ### ✅ Successfully Deployed Applications
+          # Create deployment summary
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🚀 Azure Container Apps Deployment Summary
           
-    #       | Application | URL | Image Tag |
-    #       |-------------|-----|-----------|
-    #       | **API** | [https://${API_URL}](https://${API_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
-    #       | **Web** | [https://${WEB_URL}](https://${WEB_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
+          ### ✅ Successfully Deployed Applications
           
-    #       ### 📦 Container Images
-    #       - **API Image**: \`${{ steps.vars.outputs.api_image_tag }}\`
-    #       - **Web Image**: \`${{ steps.vars.outputs.web_image_tag }}\`
+          | Application | URL | Image Tag |
+          |-------------|-----|-----------|
+          | **API** | [https://${API_URL}](https://${API_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
+          | **Web** | [https://${WEB_URL}](https://${WEB_URL}) | \`${{ steps.vars.outputs.build_number }}\` |
           
-    #       ### 🔧 Build Information
-    #       - **Build Number**: ${{ steps.vars.outputs.build_number }}
-    #       - **Git SHA**: \`${{ steps.vars.outputs.short_sha }}\`
-    #       - **Branch**: \`${{ steps.vars.outputs.branch_name }}\`
-    #       - **Environment**: \`${{ env.CONTAINER_APPS_ENVIRONMENT }}\`
-    #       - **Resource Group**: \`${{ env.RESOURCE_GROUP }}\`
-    #       EOF
+          ### 📦 Container Images
+          - **API Image**: \`${{ steps.vars.outputs.api_image_tag }}\`
+          - **Web Image**: \`${{ steps.vars.outputs.web_image_tag }}\`
+          
+          ### 🔧 Build Information
+          - **Build Number**: ${{ steps.vars.outputs.build_number }}
+          - **Git SHA**: \`${{ steps.vars.outputs.short_sha }}\`
+          - **Branch**: \`${{ steps.vars.outputs.branch_name }}\`
+          - **Environment**: \`${{ env.CONTAINER_APPS_ENVIRONMENT }}\`
+          - **Resource Group**: \`${{ env.RESOURCE_GROUP }}\`
+          
+          ### 🌍 Environment Variables Set for API
+          - **Azure OpenAI**: \`aoai-3rbky3yz3zumq\`
+          - **Azure Search**: \`srch-3rbky3yz3zumq\`
+          - **Application Insights**: Configured
+          - **Azure AI Project**: \`ai-project-3rbky3yz3zumq\`
+          - **Bing Search**: Configured
+          EOF
 
-    #   - name: Perform health checks
-    #     run: |
-    #       echo "🔍 Performing application health checks..."
-          
-    #       API_URL="${{ steps.deployment.outputs.api_url }}"
-    #       WEB_URL="${{ steps.deployment.outputs.web_url }}"
-          
-    #       # API Health Check
-    #       echo "Checking API health at: $API_URL"
-    #       API_HEALTHY=false
-          
-    #       for attempt in {1..6}; do
-    #         echo "🔄 API health check attempt $attempt/6..."
-            
-    #         if curl -f -s --max-time 10 "$API_URL/health" &>/dev/null || \
-    #            curl -f -s --max-time 10 "$API_URL/" &>/dev/null || \
-    #            curl -f -s --max-time 10 "$API_URL/docs" &>/dev/null; then
-    #           echo "✅ API is healthy and responding"
-    #           API_HEALTHY=true
-    #           break
-    #         else
-    #           echo "⏳ API not ready, waiting 15 seconds..."
-    #           sleep 15
-    #         fi
-    #       done
-          
-    #       # Web Health Check
-    #       echo "Checking Web application health at: $WEB_URL"
-    #       WEB_HEALTHY=false
-          
-    #       for attempt in {1..6}; do
-    #         echo "🔄 Web health check attempt $attempt/6..."
-            
-    #         if curl -f -s --max-time 10 "$WEB_URL" &>/dev/null; then
-    #           echo "✅ Web application is healthy and responding"
-    #           WEB_HEALTHY=true
-    #           break
-    #         else
-    #           echo "⏳ Web application not ready, waiting 15 seconds..."
-    #           sleep 15
-    #         fi
-    #       done
-          
-    #       # Update summary with health check results
-    #       cat >> $GITHUB_STEP_SUMMARY << EOF
-          
-    #       ### 🏥 Health Check Results
-    #       - **API Health**: $([ "$API_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
-    #       - **Web Health**: $([ "$WEB_HEALTHY" = true ] && echo "✅ Healthy" || echo "❌ Unhealthy")
-          
-    #       EOF
-          
-    #       echo "🎉 Deployment completed successfully!"
-
-    #   - name: Azure logout
-    #     if: always()
-    #     run: |
-    #       az logout || true
-    #       echo "🔐 Logged out from Azure CLI"
+      - name: Azure logout
+        if: always()
+        run: |
+          az logout || true
+          echo "🔐 Logged out from Azure CLI"
