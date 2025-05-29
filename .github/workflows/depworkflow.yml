@@ -178,7 +178,6 @@ jobs:
               --registry-server ${{ env.REGISTRY_URL }} \
               --registry-username "${ACR_USERNAME}" \
               --registry-password "${ACR_PASSWORD}" \
-              --assign-identity "$MANAGED_IDENTITY_ID" \
               --env-vars \
                 ENVIRONMENT=production \
                 BUILD_NUMBER=${{ steps.vars.outputs.build_number }} \
@@ -206,6 +205,13 @@ jobs:
                 BING_SEARCH_ENDPOINT=https://api.bing.microsoft.com/ \
                 WEB_SERVICE_ACA_NAME=agent-web \
                 WEB_SERVICE_ACA_URI=https://agent-web.victoriousbush-684c2a61.eastus2.azurecontainerapps.io
+            
+            # Assign managed identity to newly created container app
+            echo "🔑 Assigning managed identity to newly created container app..."
+            az containerapp identity assign \
+              --name ${{ env.API_IMAGE_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --user-assigned "$MANAGED_IDENTITY_ID"
           fi
           
           echo "✅ Managed identity assigned to Container App successfully!"
