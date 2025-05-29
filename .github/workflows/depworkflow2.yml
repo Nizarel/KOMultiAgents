@@ -56,4 +56,4 @@ jobs:
           containerAppName: ${{ env.API_IMAGE_NAME }}
           containerAppEnvironment: ${{ env.CONTAINER_APPS_ENVIRONMENT }}
           resourceGroup: ${{ env.RESOURCE_GROUP }}
-          imageToBuild: "${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.API_IMAGE_NAME }}:${SHORT_SHA}"
+          imageToBuild: "${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}"
