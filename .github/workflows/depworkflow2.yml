@@ -67,13 +67,30 @@ jobs:
           
           echo "Using managed identity: $IDENTITY_ID"
           
-          # Update container app with the new image
-          echo "Updating container app with new image..."
-          az containerapp update \
+          # First, ensure the managed identity is assigned to the container app
+          echo "Assigning managed identity to container app..."
+          az containerapp identity assign \
             --name ${{ env.API_IMAGE_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
-            
+            --user-assigned $IDENTITY_ID
+          
+          # Get ACR resource ID for role assignment
+          ACR_ID=$(az acr show --name ${{ env.AZURE_CONTAINER_REGISTRY }} --query "id" -o tsv)
+          echo "ACR Resource ID: $ACR_ID"
+          
+          # Ensure the managed identity has AcrPull permissions
+          echo "Assigning AcrPull role to managed identity..."
+          az role assignment create \
+            --assignee ${{ secrets.AGENTAPI2_AZURE_CLIENT_ID }} \
+            --role "AcrPull" \
+            --scope $ACR_ID \
+            --condition-version "2.0" \
+            --only-show-errors
+          
+          # Wait a moment for permissions to propagate
+          echo "Waiting for permissions to propagate..."
+          sleep 30
+          
           # Configure registry authentication with managed identity
           echo "Configuring registry authentication..."
           az containerapp registry set \
@@ -81,5 +98,12 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --server ${{ env.REGISTRY_URL }} \
             --identity $IDENTITY_ID
+          
+          # Update container app with the new image
+          echo "Updating container app with new image..."
+          az containerapp update \
+            --name ${{ env.API_IMAGE_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.REGISTRY_URL }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
             
           echo "Deployment completed successfully!"
